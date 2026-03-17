@@ -8,8 +8,6 @@ const LINE_CHANNEL_ID = Deno.env.get("LINE_CHANNEL_ID")!
 const LINE_CHANNEL_SECRET = Deno.env.get("LINE_CHANNEL_SECRET")!
 const CALLBACK_URL = Deno.env.get("LINE_CALLBACK_URL")!
 
-const FRONTEND_URL = Deno.env.get("FRONTEND_URL")!
-
 serve(async (req) => {
 
   const url = new URL(req.url)
