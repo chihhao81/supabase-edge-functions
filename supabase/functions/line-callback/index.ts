@@ -8,13 +8,17 @@ const LINE_CHANNEL_ID = Deno.env.get("LINE_CHANNEL_ID")!
 const LINE_CHANNEL_SECRET = Deno.env.get("LINE_CHANNEL_SECRET")!
 const CALLBACK_URL = Deno.env.get("LINE_CALLBACK_URL")!
 
+const FRONTEND_URL = Deno.env.get("FRONTEND_URL")!
+
 serve(async (req) => {
 
   const url = new URL(req.url)
   const code = url.searchParams.get("code")
 
   if (!code) {
-    return new Response("Missing code", { status: 400 })
+    return Response.redirect(
+      `${FRONTEND_URL}/login-error`
+    )
   }
 
   const supabase = createClient(
@@ -63,6 +67,7 @@ serve(async (req) => {
 
     let lineUserId = profile.userId
     const displayName = profile.displayName
+    const pictureUrl = profile.pictureUrl
     
     // if (lineUserId.startsWith("u")) {
     //   lineUserId = "U" + lineUserId.slice(1)
@@ -99,7 +104,7 @@ serve(async (req) => {
         .update({
           line_user_id: lineUserId,
           line_display_name: displayName,
-          line_group_display_name: displayName
+          picture_url: pictureUrl
         })
         .eq("id", userId)
     } else {
@@ -110,7 +115,10 @@ serve(async (req) => {
     const { data: linkData, error: linkError } =
       await supabase.auth.admin.generateLink({
         type: "magiclink",
-        email
+        email,
+        options: {
+          redirectTo: FRONTEND_URL
+        }
       })
 
     if (linkError) {

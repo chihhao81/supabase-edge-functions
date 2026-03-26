@@ -1,4 +1,8 @@
 import { serve } from "https://deno.land/std/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js"
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
 serve(async (req) => {
 
@@ -23,14 +27,15 @@ serve(async (req) => {
   }
 
   const totalText = formatMoney(total)
+  const summaryLine = items.length == 1 ? '' : `\n${items.map(i => formatMoney(i.final_price)).join(" + ")} = *${totalText}*`
 
   message += `您好，恭喜得標！
 
-${lines.join("\n")}
-${items.map(i => formatMoney(i.final_price)).join(" + ")} = *${totalText}*
+${lines.join("\n")}${summaryLine}
 
 711寄送 +$60
 黑貓寄送 +$130
+寄送不包損，頭份可面交
 
 確認沒問題後請轉帳
 $${totalText} + 運費
@@ -47,7 +52,7 @@ ${payload.account_number}
     message += `您有 ${payload.auction_count} 個競標即將在10分鐘內結束\n點擊連結查看：https://aura-bid.vercel.app`
   }
 
-  await fetch("https://api.line.me/v2/bot/message/push", {
+  const res = await fetch("https://api.line.me/v2/bot/message/push", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN")}`,
@@ -63,6 +68,27 @@ ${payload.account_number}
       ]
     })
   })
+  const data = await res.json()
+
+  const supabase = createClient(
+    SUPABASE_URL,
+    SERVICE_ROLE
+  )
+  const { error } = await supabase
+    .from("api_message_logs")
+    .insert({
+      line_user_id: lineUserId,
+      event: type,
+      type: "push",
+      status: res.status,
+      payload,
+      raw_response: data,
+      error: res.ok ? null : JSON.stringify(data),
+    })
+
+  if (error) {
+    console.error("log insert failed:", error)
+  }
 
   return new Response("ok")
 })
